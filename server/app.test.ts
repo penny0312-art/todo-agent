@@ -51,13 +51,31 @@ test("任务 API 可以创建、列出、修改和删除任务", async (t) => {
   assert.equal(created.status, 201);
   const task = created.body;
   assert.equal(typeof task.id, "string");
-  assert.deepEqual(task, { id: task.id, title: "买牛奶", done: false });
+  assert.deepEqual(task, {
+    id: task.id,
+    title: "买牛奶",
+    done: false,
+    priority: "medium",
+    effort: "medium",
+    dueDate: null,
+    parentId: null,
+    estimatedMinutes: null,
+    createdAt: task.createdAt,
+    completedAt: null,
+    updatedAt: task.updatedAt,
+  });
+  assert.equal(typeof task.createdAt, "string");
+  assert.equal(task.updatedAt, task.createdAt);
 
   const item = collection + "/" + task.id;
   const completed = await request("PATCH", item, { done: true });
-  assert.deepEqual(completed, { status: 200, body: { ...task, done: true } });
+  assert.equal(completed.status, 200);
+  assert.equal(completed.body.done, true);
+  assert.equal(typeof completed.body.completedAt, "string");
   const renamed = await request("PATCH", item, { title: "买面包" });
-  assert.deepEqual(renamed, { status: 200, body: { ...task, title: "买面包", done: true } });
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.body.title, "买面包");
+  assert.equal(renamed.body.completedAt, completed.body.completedAt);
   assert.deepEqual((await request("GET", collection)).body, [renamed.body]);
 
   assert.deepEqual(await request("DELETE", item), { status: 204, body: null });
@@ -74,12 +92,18 @@ test("任务 API 拒绝无效输入并区分不存在的任务", async (t) => {
 
 test("更新已有 JSON 清单时保留其他任务和扩展字段", async (t) => {
   const { request, filename } = await startTestApp(t);
-  const first = { id: "a", title: "买牛奶", done: false, priority: 1 };
+  const first = { id: "a", title: "买牛奶", done: false, legacyNote: "保留" };
   const second = { id: "b", title: "取快递", done: false };
   await writeFile(filename, JSON.stringify([first, second]));
 
   assert.equal((await request("PATCH", "/api/tasks/a", { done: true })).status, 200);
-  assert.deepEqual(createJsonTaskStore(filename).list(), [{ ...first, done: true }, second]);
+  const stored = createJsonTaskStore(filename).list();
+  assert.equal(stored.length, 2);
+  assert.equal(stored[0]?.legacyNote, "保留");
+  assert.equal(stored[0]?.done, true);
+  assert.equal(stored[0]?.createdAt, null);
+  assert.equal(typeof stored[0]?.completedAt, "string");
+  assert.equal(stored[1]?.createdAt, null);
 });
 
 test("聊天 API 只将有效的完整对话传给智能体，并返回其回复", async (t) => {

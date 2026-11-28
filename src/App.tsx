@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import type { ChatMessage } from "../shared/chat.ts";
 import { requestReply } from "./chat-client.ts";
 import { ChatHistory } from "./ChatHistory.tsx";
+import { TaskPanel } from "./TaskPanel.tsx";
 
 function isSendShortcut(event: KeyboardEvent<HTMLTextAreaElement>) {
   // 中文输入法会用 Enter 确认选词，部分浏览器此时只报告键码 229。
@@ -46,6 +47,7 @@ export default function App() {
       </header>
       <main>
         <ChatHistory messages={messages} pending={pending} onSelectPrompt={send} />
+        <TaskPanel refreshKey={messages.length + (pending ? 0.5 : 0)} />
         <div className="compose">
           {error && (
             <p className="error" role="alert">
